@@ -16,3 +16,6 @@
 # Virtual environments
 venv/
 .venv/
+
+# Config files
+.DS_Store
