@@ -8,6 +8,8 @@ and each column represents a single day across all patients.
 """
 
 import numpy as np
+from functools import reduce
+import time
 
 
 def load_csv(filename):
@@ -44,6 +46,7 @@ def daily_min(data):
    """
     return np.min(data, axis=0)
 
+
 def patient_normalise(data):
     """
     Normalise patient data between 0 and 1 of a 2D inflammation data array.
@@ -66,3 +69,120 @@ def patient_normalise(data):
     normalised[np.isnan(normalised)] = 0
     return normalised
 
+
+def daily_above_threshold(patient_num, data, threshold):
+   """Count how many days a given patient's inflammation exceeds a given threshold.
+
+   :param patient_num: The patient row number
+   :param data: A 2D data array with inflammation data
+   :param threshold: An inflammation threshold to check each daily value against
+   :returns: An integer representing the number of days a patient's inflammation is over a given threshold
+   """
+   above_threshold = map(lambda x: x > threshold, data[patient_num])
+   return reduce(lambda a, b: a + 1 if b else a, above_threshold, 0)
+
+
+def sum_of_squares(l):
+    """
+    Calculates the sum of the squares of the values in a list using the MapReduce approach
+    """
+    integers = [int(x) for x in l if x[0] != '#']
+    squares = [x * x for x in integers]
+    return reduce(lambda a, b: a + b, squares)
+
+
+
+def profile(func):
+   def inner(*args, **kwargs):
+       start = time.process_time_ns()
+       result = func(*args, **kwargs)
+       stop = time.process_time_ns()
+
+       print("Took {0} seconds".format((stop - start) / 1e9))
+       return result
+
+   return inner
+
+@profile
+def measure_me(n):
+   total = 0
+   for i in range(n):
+       total += i * i
+
+   return total
+
+
+def attach_names(data, names):
+    """Create datastructure containing patient records."""
+    assert len(data) == len(names)
+    output = []
+
+    for data_row, name in zip(data, names):
+        output.append({'name': name,
+                       'data': data_row})
+
+    return output
+
+
+class Observation:
+    def __init__(self, day, value):
+        self.day = day
+        self.value = value
+
+    def __str__(self):
+        return str(self.value)
+
+
+class Person:
+    def __init__(self, name):
+        self.name = name
+
+    def __str__(self):
+        return self.name
+
+class Patient(Person):
+    """A patient in an inflammation study."""
+    def __init__(self, name, observations=None):
+        super().__init__(name)
+
+        self.observations = []
+        if observations is not None:
+            self.observations = observations
+
+    def add_observation(self, value, day=None):
+        if day is None:
+            try:
+                day = self.observations[-1].day + 1
+
+            except IndexError:
+                day = 0
+
+        new_observation = Observation(day, value)
+
+        self.observations.append(new_observation)
+        return new_observation
+
+
+class Doctor(Person):
+    """A doctor in an inflammation study."""
+    def __init__(self, name):
+        super().__init__(name)
+        self.patients = []
+
+    def add_patient(self, new_patient):
+        # A crude check by name if this patient is already looked after
+        # by this doctor before adding them
+        for patient in self.patients:
+            if patient.name == new_patient.name:
+                return
+        self.patients.append(new_patient)
+
+
+class Book:
+    def __init__(self, title, author):
+        self.title = title
+        self.author = author
+
+    def __str__(self):
+        str_out = self.title + ' by ' + self.author
+        return str_out
